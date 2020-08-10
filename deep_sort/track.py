@@ -1,5 +1,5 @@
 # vim: expandtab:ts=4:sw=4
-from collections import Counter
+
 
 class TrackState:
     """
@@ -63,7 +63,7 @@ class Track:
 
     """
 
-    def __init__(self, mean, covariance, track_id, n_init, max_age, cls, adc_threshold, detection_confidence,
+    def __init__(self, mean, covariance, track_id, n_init, max_age,
                  feature=None):
         self.mean = mean
         self.covariance = covariance
@@ -71,14 +71,6 @@ class Track:
         self.hits = 1
         self.age = 1
         self.time_since_update = 0
-        self.det_cls = cls  # the class from detection
-        self.counter = Counter()
-        self.cls = None  # for most common class
-
-        self.total_prob = 0
-        self.adc_threshold = adc_threshold  # Average detection confidence threshold
-        self.detection_confidence = detection_confidence
-        self.adc = 0
 
         self.state = TrackState.Tentative
         self.features = []
@@ -135,9 +127,6 @@ class Track:
         """Perform Kalman filter measurement update step and update the feature
         cache.
 
-        This version creates tracks only when the average detection confidence is
-        higher than the set threshold.
-
         Parameters
         ----------
         kf : kalman_filter.KalmanFilter
@@ -149,18 +138,11 @@ class Track:
         self.mean, self.covariance = kf.update(
             self.mean, self.covariance, detection.to_xyah())
         self.features.append(detection.feature)
-        self.counter[self.det_cls] += 1
-        self.cls = self.counter.most_common(1)[0][0]  # get most common cls for track
 
         self.hits += 1
         self.time_since_update = 0
-        self.total_prob += self.detection_confidence
-        self.adc = self.total_prob / self.hits
         if self.state == TrackState.Tentative and self.hits >= self._n_init:
-            if self.adc < self.adc_threshold:
-                self.state = TrackState.Deleted
-            else:
-                self.state = TrackState.Confirmed
+            self.state = TrackState.Confirmed
 
     def mark_missed(self):
         """Mark this track as missed (no association at the current time step).
